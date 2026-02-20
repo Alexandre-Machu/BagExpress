@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum types
+enum UserRole {
+  CLIENT
+  DRIVER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+}
+
+enum BaggageSize {
+  SMALL
+  MEDIUM
+  LARGE
+  XLARGE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// Models
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  phone         String?
+  role          UserRole  @default(CLIENT)
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  bookings      Booking[]
+  driver        Driver?
+  
+  @@index([email])
+}
+
+model Driver {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  vehicleType     String    // bike, electric-bike, scooter, car
+  vehicleModel    String
+  licensePlate    String
+  rating          Float     @default(5.0)
+  totalDeliveries Int       @default(0)
+  earnings        Float     @default(0)
+  isVerified      Boolean   @default(false)
+  isOnline        Boolean   @default(false)
+  latitude        Float?
+  longitude       Float?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+  
+  @@index([userId])
+  @@index([isOnline])
+}
+
+model Booking {
+  id                   String        @id @default(cuid())
+  
+  // Customer info
+  customerId           String
+  customerName         String
+  customerPhone        String
+  
+  // Driver info
+  driverId             String?
+  
+  // Location details
+  pickupLocation       String
+  pickupLatitude       Float
+  pickupLongitude      Float
+  deliveryLocation     String
+  deliveryLatitude     Float
+  deliveryLongitude    Float
+  
+  // Baggage details
+  baggageSize          BaggageSize
+  baggageCount         Int
+  specialInstructions  String?
+  
+  // Timing
+  pickupTime           DateTime
+  acceptedAt           DateTime?
+  pickedUpAt           DateTime?
+  deliveredAt          DateTime?
+  
+  // Status
+  status               BookingStatus @default(PENDING)
+  
+  // Pricing
+  price                Float
+  commission           Float         @default(0)
+  driverEarnings       Float         @default(0)
+  
+  // QR Code
+  qrCode               String?
+  
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  
+  // Relations
+  customer             User          @relation(fields: [customerId], references: [id])
+  driver               Driver?       @relation(fields: [driverId], references: [id])
+  payment              Payment?
+  
+  @@index([customerId])
+  @@index([driverId])
+  @@index([status])
+  @@index([pickupTime])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  bookingId         String        @unique
+  amount            Float
+  currency          String        @default("EUR")
+  status            PaymentStatus @default(PENDING)
+  stripePaymentId   String?
+  stripeClientSecret String?
+  refundAmount      Float?
+  refundedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relations
+  booking           Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  @@index([bookingId])
+  @@index([status])
+}
