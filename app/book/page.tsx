@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Backpack, MapPin, Package, Calendar, CreditCard, ArrowLeft, CheckCircle } from 'lucide-react'
 import dynamic from 'next/dynamic'
@@ -25,6 +25,12 @@ interface BookingData {
   specialInstructions: string
 }
 
+interface AddressSuggestion {
+  display_name: string
+  lat: string
+  lon: string
+}
+
 const baggagePrices: Record<BaggageSize, number> = {
   small: 8,
   medium: 12,
@@ -40,16 +46,76 @@ export default function BookingPage() {
   const [bookingData, setBookingData] = useState<BookingData>({
     pickupLocation: '',
     deliveryLocation: '',
-    pickupCoords: [48.8566, 2.3522], // Paris par défaut
+    pickupCoords: [48.8566, 2.3522],
     deliveryCoords: [48.8606, 2.3376],
     baggageSize: 'medium',
     baggageCount: 1,
     pickupTime: '',
     specialInstructions: '',
   })
+  
+  // Autocompletion states
+  const [pickupSuggestions, setPickupSuggestions] = useState<AddressSuggestion[]>([])
+  const [deliverySuggestions, setDeliverySuggestions] = useState<AddressSuggestion[]>([])
+  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false)
+  const [showDeliverySuggestions, setShowDeliverySuggestions] = useState(false)
+  
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Search addresses using Nominatim API
+  const searchAddresses = async (query: string, setSuggestions: (s: AddressSuggestion[]) => void) => {
+    if (query.length < 3) {
+      setSuggestions([])
+      return
+    }
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=fr,de,es,pt,it,be&addresstype=attraction,railway_station,hotel&amenitytype=station,accommodation`
+      )
+      const data = await response.json()
+      setSuggestions(data)
+    } catch (error) {
+      console.error('Address search error:', error)
+      setSuggestions([])
+    }
+  }
+
+  // Debounced search for pickup location
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchAddresses(bookingData.pickupLocation, setPickupSuggestions)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [bookingData.pickupLocation])
+
+  // Debounced search for delivery location
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchAddresses(bookingData.deliveryLocation, setDeliverySuggestions)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [bookingData.deliveryLocation])
+
+  const selectPickupAddress = (suggestion: AddressSuggestion) => {
+    setBookingData({
+      ...bookingData,
+      pickupLocation: suggestion.display_name,
+      pickupCoords: [parseFloat(suggestion.lat), parseFloat(suggestion.lon)],
+    })
+    setShowPickupSuggestions(false)
+  }
+
+  const selectDeliveryAddress = (suggestion: AddressSuggestion) => {
+    setBookingData({
+      ...bookingData,
+      deliveryLocation: suggestion.display_name,
+      deliveryCoords: [parseFloat(suggestion.lat), parseFloat(suggestion.lon)],
+    })
+    setShowDeliverySuggestions(false)
+  }
 
   const calculatePrice = () => {
     const basePrice = baggagePrices[bookingData.baggageSize] * bookingData.baggageCount
@@ -201,7 +267,7 @@ export default function BookingPage() {
                 {/* Étape 1: Itinéraire */}
                 {step === 1 && (
                   <div className="space-y-6">
-                    <div>
+                    <div className="relative">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         <MapPin className="inline h-5 w-5 mr-2" />
                         {t.booking.pickupLocation}
@@ -212,10 +278,30 @@ export default function BookingPage() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         placeholder={t.booking.pickupPlaceholder}
                         value={bookingData.pickupLocation}
-                        onChange={(e) => setBookingData({ ...bookingData, pickupLocation: e.target.value })}
+                        onChange={(e) => {
+                          setBookingData({ ...bookingData, pickupLocation: e.target.value })
+                          setShowPickupSuggestions(true)
+                        }}
+                        onFocus={() => setShowPickupSuggestions(true)}
                       />
+                      {showPickupSuggestions && pickupSuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                          {pickupSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => selectPickupAddress(suggestion)}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition"
+                            >
+                              <div className="font-medium text-gray-900">{suggestion.display_name.split(',')[0]}</div>
+                              <div className="text-sm text-gray-500">{suggestion.display_name}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div>
+                    
+                    <div className="relative">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         <MapPin className="inline h-5 w-5 mr-2" />
                         {t.booking.deliveryLocation}
@@ -226,13 +312,34 @@ export default function BookingPage() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         placeholder={t.booking.deliveryPlaceholder}
                         value={bookingData.deliveryLocation}
-                        onChange={(e) => setBookingData({ ...bookingData, deliveryLocation: e.target.value })}
+                        onChange={(e) => {
+                          setBookingData({ ...bookingData, deliveryLocation: e.target.value })
+                          setShowDeliverySuggestions(true)
+                        }}
+                        onFocus={() => setShowDeliverySuggestions(true)}
                       />
+                      {showDeliverySuggestions && deliverySuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                          {deliverySuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => selectDeliveryAddress(suggestion)}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0 transition"
+                            >
+                              <div className="font-medium text-gray-900">{suggestion.display_name.split(',')[0]}</div>
+                              <div className="text-sm text-gray-500">{suggestion.display_name}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-semibold"
+                      disabled={!bookingData.pickupLocation || !bookingData.deliveryLocation}
+                      className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold"
                     >
                       {t.booking.continue}
                     </button>
