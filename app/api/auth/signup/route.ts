@@ -4,7 +4,10 @@ import bcrypt from 'bcrypt';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name, phone, role = 'CLIENT' } = await request.json();
+    const body = await request.json();
+    const { email, password, name, phone, role = 'CLIENT' } = body;
+
+    console.log('Signup attempt for:', email);
 
     // Validation
     if (!email || !password || !name) {
@@ -27,7 +30,16 @@ export async function POST(request: Request) {
     }
 
     // Hasher le mot de passe
-    const hashedPassword = await bcrypt.hash(password, 10);
+    let hashedPassword;
+    try {
+      hashedPassword = await bcrypt.hash(password, 10);
+    } catch (bcryptError) {
+      console.error('Bcrypt error:', bcryptError);
+      return NextResponse.json(
+        { error: 'Password hashing failed' },
+        { status: 500 }
+      );
+    }
 
     // Créer l'utilisateur
     const user = await prisma.user.create({
@@ -35,10 +47,12 @@ export async function POST(request: Request) {
         email,
         password: hashedPassword,
         name,
-        phone,
+        phone: phone || null,
         role,
       },
     });
+
+    console.log('User created successfully:', user.id);
 
     return NextResponse.json(
       {
@@ -52,10 +66,13 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Signup error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    
     return NextResponse.json(
-      { error: 'Failed to create user' },
+      { error: error.message || 'Failed to create user' },
       { status: 500 }
     );
   }

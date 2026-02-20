@@ -57,7 +57,15 @@ export default function SignupPage() {
         }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        console.error('Response status:', response.status);
+        console.error('Response text:', await response.text());
+        throw new Error('Server error - please try again');
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Signup failed');
