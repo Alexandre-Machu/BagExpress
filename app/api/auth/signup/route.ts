@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import bcrypt from 'bcrypt';
+import bcryptjs from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
@@ -32,9 +32,9 @@ export async function POST(request: Request) {
     // Hasher le mot de passe
     let hashedPassword;
     try {
-      hashedPassword = await bcrypt.hash(password, 10);
+      hashedPassword = await bcryptjs.hash(password, 10);
     } catch (bcryptError) {
-      console.error('Bcrypt error:', bcryptError);
+      console.error('Bcryptjs error:', bcryptError);
       return NextResponse.json(
         { error: 'Password hashing failed' },
         { status: 500 }
