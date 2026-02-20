@@ -58,13 +58,15 @@ export default function SignupPage() {
       });
 
       let data;
+      const responseText = await response.text();
+      
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
       } catch (parseError) {
         console.error('Failed to parse response:', parseError);
         console.error('Response status:', response.status);
-        console.error('Response text:', await response.text());
-        throw new Error('Server error - please try again');
+        console.error('Response text:', responseText);
+        throw new Error(`Server error (${response.status}) - please try again`);
       }
 
       if (!response.ok) {
