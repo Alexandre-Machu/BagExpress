@@ -119,8 +119,8 @@ export default function BookingPage() {
 
   const calculatePrice = () => {
     const basePrice = baggagePrices[bookingData.baggageSize] * bookingData.baggageCount
-    const serviceFee = 2
-    return basePrice + serviceFee
+    const commission = basePrice * 0.2
+    return basePrice + commission
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -505,8 +505,8 @@ export default function BookingPage() {
                   <span className="font-semibold">x{bookingData.baggageCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">{t.booking.serviceFee}</span>
-                  <span className="font-semibold">2€</span>
+                  <span className="text-gray-600">{t.booking.serviceFee} (20%)</span>
+                  <span className="font-semibold">{(baggagePrices[bookingData.baggageSize] * bookingData.baggageCount * 0.2).toFixed(2)}€</span>
                 </div>
                 <div className="border-t pt-3 flex justify-between">
                   <span className="font-bold text-lg">{t.booking.total}</span>
