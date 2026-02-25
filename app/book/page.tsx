@@ -181,18 +181,30 @@ export default function BookingPage() {
           <p className="text-gray-600 mb-6">
             {t.booking.driverWillAccept}
           </p>
-          <div className="bg-gray-50 p-6 rounded-lg mb-6 text-left">
-            <div className="flex justify-between mb-3">
+          <div className="bg-gray-50 p-6 rounded-lg mb-6 text-left space-y-6">
+            <div className="flex justify-between items-center pb-4 border-b border-gray-200">
               <span className="text-gray-600">{t.booking.totalPrice}</span>
-              <span className="font-semibold text-xl">{calculatePrice()}€</span>
+              <span className="font-bold text-2xl text-primary-600">{calculatePrice()}€</span>
             </div>
-            <div className="flex justify-between mb-3">
-              <span className="text-gray-600">{t.booking.pickup}</span>
-              <span className="font-semibold">{bookingData.pickupLocation}</span>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <MapPin className="h-4 w-4" />
+                <span className="font-medium">{t.booking.pickup}</span>
+              </div>
+              <p className="text-gray-900 font-medium pl-6 leading-relaxed">
+                {bookingData.pickupLocation}
+              </p>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">{t.booking.delivery}</span>
-              <span className="font-semibold">{bookingData.deliveryLocation}</span>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Package className="h-4 w-4" />
+                <span className="font-medium">{t.booking.delivery}</span>
+              </div>
+              <p className="text-gray-900 font-medium pl-6 leading-relaxed">
+                {bookingData.deliveryLocation}
+              </p>
             </div>
           </div>
           <div className="flex flex-col space-y-3">
